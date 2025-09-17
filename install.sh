@@ -75,18 +75,46 @@ authenticate_github() {
         return 0
     fi
     
-    log "GitHub authentication required"
-    echo ""
-    echo "🔐 This installer needs to authenticate with GitHub to access private repositories."
-    echo "   You'll be redirected to GitHub in your browser for secure authentication."
-    echo ""
+    local max_attempts=3
+    local attempt=1
     
-    if ! gh auth login --web --scopes repo,read:org; then
-        error "GitHub authentication failed"
-        exit 1
-    fi
+    while [[ $attempt -le $max_attempts ]]; do
+        log "GitHub authentication required (attempt $attempt/$max_attempts)"
+        echo ""
+        echo "🔐 This installer needs to authenticate with GitHub to access private repositories."
+        echo "   You'll be redirected to GitHub in your browser for secure authentication."
+        echo ""
+        
+        if gh auth login --web --scopes repo,read:org; then
+            success "GitHub authentication completed"
+            return 0
+        fi
+        
+        warn "GitHub authentication failed (attempt $attempt/$max_attempts)"
+        
+        if [[ $attempt -lt $max_attempts ]]; then
+            echo ""
+            echo "Common issues and solutions:"
+            echo "• Make sure your browser opened and you completed the authentication"
+            echo "• Check your internet connection"
+            echo "• Try closing and reopening your browser"
+            echo "• Make sure you're logged into the correct GitHub account"
+            echo ""
+            echo "Press Enter to try again or Ctrl+C to cancel..."
+            read -r
+        fi
+        
+        ((attempt++))
+    done
     
-    success "GitHub authentication completed"
+    error "GitHub authentication failed after $max_attempts attempts"
+    echo ""
+    echo "💡 Troubleshooting tips:"
+    echo "• Run 'gh auth login' manually first, then re-run this installer"
+    echo "• Check if your GitHub account has access to the target repository"
+    echo "• Ensure you're using the correct GitHub organization account"
+    echo ""
+    exit 1
 }
 
 # Verify repository access
