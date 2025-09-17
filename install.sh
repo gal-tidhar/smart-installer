@@ -214,11 +214,18 @@ main() {
         elif python3 -m pip install --break-system-packages --user -r requirements.txt 2>/dev/null; then
             warn "Used --break-system-packages flag for externally-managed Python environment"
             install_success=true
-        # Method 3: Create temporary virtual environment
-        elif python3 -m venv .temp_venv 2>/dev/null && source .temp_venv/bin/activate && pip install -r requirements.txt 2>/dev/null; then
-            log "Created temporary virtual environment for dependencies"
-            install_success=true
-            # Don't deactivate - we need the venv active for main.py
+        # Method 3: Create temporary virtual environment (properly handle activation)
+        elif python3 -m venv .temp_venv 2>/dev/null; then
+            log "Creating temporary virtual environment for dependencies..."
+            # Activate venv and install in same shell context
+            if source .temp_venv/bin/activate && pip install -r requirements.txt 2>/dev/null; then
+                log "Virtual environment created and dependencies installed"
+                install_success=true
+                export VIRTUAL_ENV_ACTIVE=true
+            else
+                # Clean up failed venv
+                rm -rf .temp_venv 2>/dev/null
+            fi
         fi
         
         if [[ "$install_success" == "false" ]]; then
@@ -251,13 +258,21 @@ main() {
     log "Starting main installer with arguments: $*"
     echo ""
     
+    # Determine Python command (use venv if we created one)
+    local python_cmd="python3"
+    if [[ "${VIRTUAL_ENV_ACTIVE:-}" == "true" && -f ".temp_venv/bin/activate" ]]; then
+        source .temp_venv/bin/activate
+        python_cmd="python"
+        log "Using virtual environment for main installer"
+    fi
+    
     # Run the main installer with all provided arguments
     if [[ -f "main.py" ]]; then
-        python3 main.py "$@"
+        $python_cmd main.py "$@"
     elif [[ -f "install.py" ]]; then
-        python3 install.py "$@"
+        $python_cmd install.py "$@"
     elif [[ -f "setup.py" ]]; then
-        python3 setup.py "$@"
+        $python_cmd setup.py "$@"
     else
         error "No installer script found (looking for main.py, install.py, or setup.py)"
         exit 1
