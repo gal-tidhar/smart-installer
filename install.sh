@@ -183,15 +183,17 @@ main() {
     check_python
     
     # Clone repository to temporary directory
+    local branch="${BRANCH:-main}"
     log "Downloading installer from private repository..."
+    log "Using branch: $branch"
     local temp_dir
     temp_dir=$(mktemp -d)
     
     # Cleanup on exit
     trap "rm -rf '$temp_dir'" EXIT
     
-    if ! gh repo clone "$repo" "$temp_dir"; then
-        error "Failed to clone repository"
+    if ! gh repo clone "$repo" "$temp_dir" -- -b "$branch"; then
+        error "Failed to clone repository (branch: $branch)"
         exit 1
     fi
     
