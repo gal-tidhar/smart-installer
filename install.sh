@@ -199,6 +199,23 @@ main() {
     cd "$temp_dir"
     
     success "Repository downloaded successfully"
+    
+    # Install Python dependencies if requirements.txt exists
+    if [[ -f "requirements.txt" ]]; then
+        log "Installing Python dependencies..."
+        if ! python3 -m pip install --user -r requirements.txt; then
+            error "Failed to install Python dependencies"
+            echo ""
+            echo "💡 Troubleshooting:"
+            echo "• Try running: python3 -m pip install --user pyyaml requests click rich"
+            echo "• If in a virtual environment, try: deactivate"
+            echo "• Check your internet connection"
+            echo ""
+            exit 1
+        fi
+        success "Dependencies installed successfully"
+    fi
+    
     log "Starting main installer with arguments: $*"
     echo ""
     
