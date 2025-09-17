@@ -203,16 +203,48 @@ main() {
     # Install Python dependencies if requirements.txt exists
     if [[ -f "requirements.txt" ]]; then
         log "Installing Python dependencies..."
-        if ! python3 -m pip install --user -r requirements.txt; then
+        
+        # Try different installation methods for Python 3.13+ externally-managed environments
+        local install_success=false
+        
+        # Method 1: Try --user flag first (most common)
+        if python3 -m pip install --user -r requirements.txt 2>/dev/null; then
+            install_success=true
+        # Method 2: Try --break-system-packages for externally-managed environments  
+        elif python3 -m pip install --break-system-packages --user -r requirements.txt 2>/dev/null; then
+            warn "Used --break-system-packages flag for externally-managed Python environment"
+            install_success=true
+        # Method 3: Create temporary virtual environment
+        elif python3 -m venv .temp_venv 2>/dev/null && source .temp_venv/bin/activate && pip install -r requirements.txt 2>/dev/null; then
+            log "Created temporary virtual environment for dependencies"
+            install_success=true
+            # Don't deactivate - we need the venv active for main.py
+        fi
+        
+        if [[ "$install_success" == "false" ]]; then
             error "Failed to install Python dependencies"
             echo ""
-            echo "💡 Troubleshooting:"
-            echo "• Try running: python3 -m pip install --user pyyaml requests click rich"
-            echo "• If in a virtual environment, try: deactivate"
-            echo "• Check your internet connection"
+            echo "💡 Your system has an externally-managed Python environment."
+            echo "   This is common with Python 3.13+ and Homebrew Python installations."
+            echo ""
+            echo "🔧 Manual solutions (choose one):"
+            echo "  Option 1 (Recommended): Use pipx"
+            echo "    brew install pipx"
+            echo "    # Then re-run this installer"
+            echo ""
+            echo "  Option 2: Allow system packages (not recommended)"
+            echo "    python3 -m pip install --break-system-packages --user pyyaml requests click rich"
+            echo "    # Then re-run this installer"
+            echo ""
+            echo "  Option 3: Use virtual environment"
+            echo "    python3 -m venv ~/sedric-installer-venv"
+            echo "    source ~/sedric-installer-venv/bin/activate"
+            echo "    pip install pyyaml requests click rich"
+            echo "    # Then re-run this installer"
             echo ""
             exit 1
         fi
+        
         success "Dependencies installed successfully"
     fi
     
