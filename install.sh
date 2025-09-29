@@ -280,7 +280,24 @@ main() {
         # Use specified installer path
         if [[ -f "$installer_path" ]]; then
             log "Using specified installer: $installer_path"
-            $python_cmd "$installer_path" "$@"
+            
+            # Check if it's a Python file with relative imports (contains "from ." or "import .")
+            if grep -q "from \." "$installer_path" || grep -q "import \." "$installer_path"; then
+                # Run as module from the directory containing the file
+                local installer_dir
+                installer_dir=$(dirname "$installer_path")
+                local installer_file
+                installer_file=$(basename "$installer_path")
+                local module_name
+                module_name="${installer_file%.py}"
+                
+                log "Running as module: $module_name from directory: $installer_dir"
+                cd "$installer_dir"
+                $python_cmd -m "$module_name" "$@"
+            else
+                # Run as regular script
+                $python_cmd "$installer_path" "$@"
+            fi
         else
             error "Specified installer not found: $installer_path"
             exit 1
