@@ -283,7 +283,7 @@ main() {
             
             # Check if it's a Python file with relative imports (contains "from ." or "import .")
             if grep -q "from \." "$installer_path" || grep -q "import \." "$installer_path"; then
-                # Run as module from the directory containing the file
+                # Run as module from the parent directory of the package
                 local installer_dir
                 installer_dir=$(dirname "$installer_path")
                 local installer_file
@@ -291,11 +291,17 @@ main() {
                 local module_name
                 module_name="${installer_file%.py}"
                 
-                log "Running as module: $module_name from directory: $installer_dir"
-                cd "$installer_dir"
-                $python_cmd -m "$module_name" "$@"
+                log "Detected relative imports in $installer_path"
+                log "Running as module: sedric_forge.$module_name from directory: V2/src"
+                
+                # Change to the V2/src directory (parent of sedric_forge package)
+                cd "V2/src"
+                
+                # Run as module with full package path
+                $python_cmd -m "sedric_forge.$module_name" "$@"
             else
                 # Run as regular script
+                log "No relative imports detected, running as regular script"
                 $python_cmd "$installer_path" "$@"
             fi
         else
