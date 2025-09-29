@@ -6,6 +6,7 @@
 #
 # Usage: bash <(curl -sSL https://raw.githubusercontent.com/gal-tidhar/smart-installer/main/install.sh) OWNER/REPO [args...]
 # Example: bash <(curl -sSL https://raw.githubusercontent.com/gal-tidhar/smart-installer/main/install.sh) sedric-ai-labs/developer-onboarding --dry-run
+# Default branch: main (can be overridden with BRANCH environment variable)
 #
 
 set -euo pipefail
@@ -159,20 +160,26 @@ main() {
     
     # Parse arguments
     local repo="${1:-}"
+    local installer_path="${2:-}"
+    
     if [[ -z "$repo" ]]; then
         error "Repository not specified"
         echo ""
-        echo "Usage: $0 OWNER/REPOSITORY [installer-options...]"
+        echo "Usage: $0 OWNER/REPOSITORY [INSTALLER_PATH] [installer-options...]"
         echo ""
         echo "Examples:"
         echo "  $0 myorg/private-installer --dry-run"
-        echo "  $0 myorg/dev-setup --email user@company.com"
+        echo "  $0 myorg/dev-setup V2/src/sedric_forge/main.py --email user@company.com"
+        echo "  $0 myorg/dev-setup scripts/setup.py --verbose"
         echo ""
         exit 1
     fi
     
     # Shift to pass remaining args to the installer
     shift
+    if [[ -n "$installer_path" ]]; then
+        shift  # Remove installer_path from args if provided
+    fi
     
     log "Target repository: $repo"
     
@@ -269,15 +276,30 @@ main() {
     fi
     
     # Run the main installer with all provided arguments
-    if [[ -f "main.py" ]]; then
-        $python_cmd main.py "$@"
-    elif [[ -f "install.py" ]]; then
-        $python_cmd install.py "$@"
-    elif [[ -f "setup.py" ]]; then
-        $python_cmd setup.py "$@"
+    if [[ -n "$installer_path" ]]; then
+        # Use specified installer path
+        if [[ -f "$installer_path" ]]; then
+            log "Using specified installer: $installer_path"
+            $python_cmd "$installer_path" "$@"
+        else
+            error "Specified installer not found: $installer_path"
+            exit 1
+        fi
     else
-        error "No installer script found (looking for main.py, install.py, or setup.py)"
-        exit 1
+        # Auto-detect installer (default behavior)
+        if [[ -f "main.py" ]]; then
+            log "Found root installer: main.py"
+            $python_cmd main.py "$@"
+        elif [[ -f "install.py" ]]; then
+            log "Found installer: install.py"
+            $python_cmd install.py "$@"
+        elif [[ -f "setup.py" ]]; then
+            log "Found installer: setup.py"
+            $python_cmd setup.py "$@"
+        else
+            error "No installer script found (looking for main.py, install.py, or setup.py)"
+            exit 1
+        fi
     fi
 }
 
